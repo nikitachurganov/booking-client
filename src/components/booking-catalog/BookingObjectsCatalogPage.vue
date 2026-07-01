@@ -33,7 +33,9 @@ const objects = ref([]);
 const isLoading = ref(true);
 const loadError = ref('');
 const selectedObject = ref(null);
+const selectedDocumentsObject = ref(null);
 const isDetailsOpen = ref(false);
+const isDocumentsOpen = ref(false);
 const isFiltersOpen = ref(false);
 const isDateTimeOpen = ref(false);
 const filters = ref({ ...defaultFilters });
@@ -225,6 +227,12 @@ const selectedObjectDocuments = computed(() =>
     : ['Документы не требуются'],
 );
 
+const selectedDrawerDocuments = computed(() =>
+  selectedDocumentsObject.value?.documents.length
+    ? selectedDocumentsObject.value.documents
+    : ['Документы не требуются'],
+);
+
 onMounted(async () => {
   try {
     objects.value = await fetchBookingObjects();
@@ -265,16 +273,16 @@ function openDetails(object) {
   isDetailsOpen.value = true;
 }
 
-function handleBook(object) {
-  selectedObject.value = object;
-  isDetailsOpen.value = true;
-}
-
 function updateFilter(key, value) {
   filters.value = {
     ...filters.value,
     [key]: value,
   };
+}
+
+function openDocuments(object) {
+  selectedDocumentsObject.value = object;
+  isDocumentsOpen.value = true;
 }
 
 function applyDateTime() {
@@ -290,6 +298,11 @@ function getCatalogAvailability(object, currentFilters) {
   let catalogStatus = 'available';
   let availabilityLabel = nextSlot ? formatSlot(nextSlot) : 'Нет доступных слотов';
   const slotCaption = hasSelectedDateTime ? 'Выбранное время' : 'Ближайший слот';
+  const availableSlots = object.slots.filter((slot) => slot.available);
+  const visibleSlot = matchingSlot || nextSlot;
+  const additionalSlotsCount = visibleSlot
+    ? availableSlots.filter((slot) => slot !== visibleSlot).length
+    : 0;
   let canBook = Boolean(nextSlot);
   let actionLabel = 'Выбрать слот';
 
@@ -323,6 +336,8 @@ function getCatalogAvailability(object, currentFilters) {
   return {
     matchingSlot,
     nextSlot,
+    visibleSlot,
+    additionalSlotsCount,
     catalogStatus,
     availabilityLabel,
     slotCaption,
@@ -417,8 +432,35 @@ function formatSlot(slot) {
 }
 
 function formatDate(date) {
+  if (date === getTodayIsoDate()) {
+    return 'Сегодня';
+  }
+
+  if (date === getTomorrowIsoDate()) {
+    return 'Завтра';
+  }
+
   const [, month, day] = date.split('-');
   return `${day}.${month}`;
+}
+
+function getTodayIsoDate() {
+  const today = new Date();
+  return toIsoDate(today);
+}
+
+function getTomorrowIsoDate() {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return toIsoDate(tomorrow);
+}
+
+function toIsoDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 }
 
 function formatStatus(status) {
@@ -647,7 +689,7 @@ function formatStatus(status) {
             :empty-description="emptyDescription"
             :show-reset="hasActiveFilters"
             @open="openDetails"
-            @book="handleBook"
+            @open-documents="openDocuments"
             @reset="resetFilters"
           />
         </div>
@@ -666,6 +708,39 @@ function formatStatus(status) {
         :result-count="filteredObjects.length"
         @reset="resetFilters"
       />
+    </a-drawer>
+
+    <a-drawer
+      v-model:open="isDocumentsOpen"
+      width="440"
+      :title="`Документы: ${selectedDocumentsObject?.title ?? ''}`"
+      placement="right"
+      class="catalog-documents-drawer"
+    >
+      <template v-if="selectedDocumentsObject">
+        <a-alert
+          type="warning"
+          show-icon
+          message="Для бронирования необходимо изучить документы"
+          :description="`Документов: ${selectedDrawerDocuments.length}`"
+        />
+
+        <a-list
+          class="catalog-documents-drawer__list"
+          bordered
+          :data-source="selectedDrawerDocuments"
+        >
+          <template #renderItem="{ item, index }">
+            <a-list-item>
+              <a-list-item-meta
+                :title="item"
+                :description="`Документ ${index + 1}`"
+              />
+              <a-tag color="processing">К ознакомлению</a-tag>
+            </a-list-item>
+          </template>
+        </a-list>
+      </template>
     </a-drawer>
 
     <a-drawer

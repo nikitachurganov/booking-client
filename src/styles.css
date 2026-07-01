@@ -261,25 +261,25 @@ select {
 
 .booking-object-card__image-wrap {
   position: relative;
-  height: 156px;
-  margin-bottom: 12px;
+  height: 208px;
+  padding: 8px 8px 0;
   overflow: hidden;
-  border-radius: var(--radius-sm);
-  background: #eef2f7;
 }
 
 .booking-object-card__image {
   display: block;
   width: 100%;
-  height: 100%;
+  height: 200px;
   object-fit: cover;
+  border-radius: var(--radius-sm);
 }
 
-.booking-object-card__category {
+.booking-object-card__requirement-tag {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  max-width: calc(100% - 16px);
+  top: 4px;
+  left: 4px;
+  max-width: calc(100% - 8px);
+  margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -287,79 +287,60 @@ select {
 .booking-object-card__body {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
-  gap: 10px;
-}
-
-.booking-object-card__title-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  flex: 0 0 auto;
   gap: 8px;
-  min-height: 44px;
+  padding: 8px;
 }
 
-.booking-object-card__title-row h5.ant-typography {
+.booking-object-card__title.ant-typography {
   margin: 0;
   min-width: 0;
   font-size: 15px;
-  line-height: 22px;
+  font-weight: 700;
+  line-height: 20px;
 }
 
-.booking-object-card__location {
+.booking-object-card__info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.booking-object-card__info-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
   color: var(--color-text-secondary);
   font-size: 14px;
   line-height: 22px;
 }
 
-.booking-object-card__location span {
+.booking-object-card__info-icon {
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+  font-size: 15px;
+}
+
+.booking-object-card__info-main {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.booking-object-card__info-extra {
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
 .booking-object-card__dot {
   flex: 0 0 auto;
-  width: 4px;
-  height: 4px;
+  width: 3px;
+  height: 3px;
   border-radius: 50%;
   background: var(--color-text-tertiary);
-}
-
-.booking-object-card__slot {
-  display: grid;
-  grid-template-columns: 104px minmax(0, 1fr);
-  gap: 8px;
-  min-height: 44px;
-  color: var(--color-text-secondary);
-  font-size: 13px;
-  line-height: 20px;
-}
-
-.booking-object-card__slot strong {
-  color: var(--color-text);
-  font-size: 14px;
-  font-weight: 500;
-  text-align: right;
-}
-
-.booking-object-card__requirement {
-  min-height: 40px;
-  padding: 8px 10px;
-  color: #7a4b00;
-  background: #fff7e6;
-  border: 1px solid #ffe7ba;
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  line-height: 20px;
-}
-
-.booking-object-card__action {
-  margin-top: auto;
 }
 
 .booking-objects-grid__empty,
@@ -375,8 +356,8 @@ select {
 
 .booking-objects-grid__skeleton-image {
   width: 100% !important;
-  height: 156px !important;
-  margin-bottom: 16px;
+  height: 200px !important;
+  margin: 8px 8px 16px;
 }
 
 .catalog-drawer__image {
@@ -395,6 +376,10 @@ select {
 
 .catalog-drawer__slots .ant-typography {
   margin: 0 0 8px;
+}
+
+.catalog-documents-drawer__list {
+  margin-top: 16px;
 }
 
 .catalog-drawer__footer {

@@ -21,7 +21,7 @@ defineProps({
   },
 });
 
-const emit = defineEmits(['open', 'book', 'reset']);
+const emit = defineEmits(['open', 'openDocuments', 'reset']);
 </script>
 
 <template>
@@ -47,7 +47,7 @@ const emit = defineEmits(['open', 'book', 'reset']);
       :key="object.id"
       :object="object"
       @open="emit('open', object)"
-      @book="emit('book', object)"
+      @open-documents="emit('openDocuments', object)"
     />
   </div>
 </template>

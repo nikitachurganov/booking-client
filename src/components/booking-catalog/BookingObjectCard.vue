@@ -1,5 +1,5 @@
 <script setup>
-import BookingObjectStatusTag from './BookingObjectStatusTag.vue';
+import { CalendarOutlined, EnvironmentOutlined } from '@ant-design/icons-vue';
 
 defineProps({
   object: {
@@ -8,30 +8,45 @@ defineProps({
   },
 });
 
-const emit = defineEmits(['open', 'book']);
+const emit = defineEmits(['open']);
 
-function handleBookClick(event, object) {
-  event.stopPropagation();
-  emit('book', object);
+function getSlotText(object) {
+  return object.visibleSlot ? object.availabilityLabel : 'Нет доступных слотов';
 }
 
-function getRequirementText(object) {
-  if (object.requiresDocuments) {
-    return 'Для бронирования необходимо ознакомиться с документами';
+function getAdditionalSlotsText(object) {
+  if (!object.additionalSlotsCount) {
+    return '';
   }
 
-  if (object.requiresInstruction) {
-    return 'Перед бронированием нужно пройти инструктаж';
-  }
-
-  return '';
+  return `ещё ${object.additionalSlotsCount} ${getSlotWord(object.additionalSlotsCount)}`;
 }
+
+function getSlotWord(count) {
+  const lastDigit = count % 10;
+  const lastTwoDigits = count % 100;
+
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+    return 'слотов';
+  }
+
+  if (lastDigit === 1) {
+    return 'слот';
+  }
+
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return 'слота';
+  }
+
+  return 'слотов';
+}
+
 </script>
 
 <template>
   <a-card
     class="booking-object-card"
-    :body-style="{ padding: '14px' }"
+    :body-style="{ padding: 0 }"
     :tabindex="0"
     role="button"
     :aria-label="`Открыть объект ${object.title}`"
@@ -41,44 +56,41 @@ function getRequirementText(object) {
   >
     <div class="booking-object-card__image-wrap">
       <img class="booking-object-card__image" :src="object.imageUrl" :alt="object.title" />
-      <a-tag class="booking-object-card__category" color="blue">{{ object.category }}</a-tag>
+      <a-tag
+        v-if="object.requiresDocuments"
+        color="warning"
+        class="booking-object-card__requirement-tag"
+      >
+        Требуется ознакомление
+      </a-tag>
     </div>
 
     <div class="booking-object-card__body">
-      <div class="booking-object-card__title-row">
-        <a-typography-title :level="5" :ellipsis="{ rows: 2 }">
-          {{ object.title }}
-        </a-typography-title>
-        <BookingObjectStatusTag :status="object.catalogStatus" />
-      </div>
+      <a-typography-title :level="5" :ellipsis="{ rows: 1 }" class="booking-object-card__title">
+        {{ object.title }}
+      </a-typography-title>
 
-      <div class="booking-object-card__location">
-        <span>{{ object.location }}</span>
-        <span class="booking-object-card__dot" aria-hidden="true" />
-        <span>{{ object.room }}</span>
-      </div>
+      <div class="booking-object-card__info-list">
+        <div class="booking-object-card__info-row">
+          <CalendarOutlined class="booking-object-card__info-icon" />
+          <span class="booking-object-card__info-main">{{ getSlotText(object) }}</span>
+          <span
+            v-if="getAdditionalSlotsText(object)"
+            class="booking-object-card__dot"
+            aria-hidden="true"
+          />
+          <span v-if="getAdditionalSlotsText(object)" class="booking-object-card__info-extra">
+            {{ getAdditionalSlotsText(object) }}
+          </span>
+        </div>
 
-      <div class="booking-object-card__slot">
-        <span>{{ object.slotCaption }}</span>
-        <strong>{{ object.availabilityLabel }}</strong>
+        <div class="booking-object-card__info-row">
+          <EnvironmentOutlined class="booking-object-card__info-icon" />
+          <span class="booking-object-card__info-main">
+            {{ object.location }}, {{ object.room }}
+          </span>
+        </div>
       </div>
-
-      <div
-        v-if="object.requiresDocuments || object.requiresInstruction"
-        class="booking-object-card__requirement"
-      >
-        {{ getRequirementText(object) }}
-      </div>
-
-      <a-button
-        class="booking-object-card__action"
-        :type="object.canBook ? 'primary' : 'default'"
-        block
-        :aria-label="`${object.actionLabel}: ${object.title}`"
-        @click="(event) => handleBookClick(event, object)"
-      >
-        {{ object.actionLabel }}
-      </a-button>
     </div>
   </a-card>
 </template>
