@@ -40,15 +40,14 @@
 /**
  * @typedef {Object} BookingObjectsFilters
  * @property {string} search
- * @property {string | undefined} date
- * @property {string | undefined} time
- * @property {number} duration
+ * @property {[string | undefined, string | undefined] | undefined} dateRange
+ * @property {[string | undefined, string | undefined] | undefined} timeRange
+ * @property {[number | undefined, number | undefined] | undefined} durationRange
  * @property {string | undefined} category
  * @property {string | undefined} type
  * @property {string | undefined} location
  * @property {string | undefined} service
  * @property {BookingObjectCatalogStatus | undefined} availability
- * @property {boolean} onlyAvailable
  * @property {boolean} hasRequiredDocuments
  * @property {boolean} requiresInstruction
  * @property {boolean} requiresModeration
@@ -56,7 +55,6 @@
  * @property {boolean} requiresCheckOut
  * @property {boolean} collectiveBooking
  * @property {boolean} withSubAssets
- * @property {'availableFirst' | 'nearestSlot' | 'title'} sort
  */
 
 export const bookingObjectCatalogStatuses = [

@@ -169,56 +169,64 @@ select {
   overflow: hidden;
 }
 
-.catalog-quick-toolbar__main {
+.catalog-quick-toolbar__search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.catalog-quick-toolbar__search {
+  width: min(320px, 100%);
+}
+
+.catalog-quick-toolbar__filter-button {
+  width: 32px;
+  padding-inline: 0;
+}
+
+.catalog-quick-toolbar__clear {
+  padding-inline: 8px;
+}
+
+.catalog-quick-toolbar__quick-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-top: 12px;
+}
+
+.catalog-quick-toolbar__group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.catalog-quick-toolbar__label {
+  margin-right: 4px;
+  color: var(--color-text);
+  font-size: 13px;
+  line-height: 22px;
+}
+
+.catalog-quick-toolbar__group .ant-btn-sm {
+  height: 22px;
+  padding-inline: 6px;
+  font-size: 12px;
+  line-height: 20px;
+  border-radius: var(--radius-sm);
+}
+
+.catalog-filter-field .ant-picker,
+.catalog-filter-field .ant-select {
+  width: 100%;
+}
+
+.catalog-duration-range-popover__content {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) 190px minmax(150px, 180px) minmax(160px, 200px) auto auto;
-  align-items: center;
-  gap: 10px;
-}
-
-.catalog-quick-toolbar__search,
-.catalog-quick-toolbar__select,
-.catalog-sort-select,
-.catalog-date-button {
-  width: 100%;
-}
-
-.catalog-available-checkbox {
-  white-space: nowrap;
-}
-
-.catalog-quick-toolbar__tags {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--color-split);
-}
-
-.catalog-quick-toolbar__meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--color-split);
-}
-
-.catalog-sort-select {
-  min-width: 210px;
-}
-
-.catalog-date-popover__content {
-  width: 260px;
-}
-
-.catalog-date-popover__content .ant-picker,
-.catalog-date-popover__content .ant-select {
-  width: 100%;
-}
-
-.catalog-date-popover__actions {
-  display: flex;
-  justify-content: flex-end;
+  grid-template-columns: 120px 120px;
   gap: 8px;
 }
 
@@ -395,21 +403,21 @@ select {
 }
 
 @media (max-width: 1280px) {
-  .catalog-quick-toolbar__main {
-    grid-template-columns: minmax(260px, 1fr) 180px minmax(150px, 1fr) minmax(160px, 1fr);
-  }
-
   .booking-objects-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 1040px) {
-  .catalog-quick-toolbar__main {
-    grid-template-columns: 1fr;
+  .catalog-quick-toolbar__search-row {
+    align-items: stretch;
+    flex-wrap: wrap;
   }
 
-  .catalog-quick-toolbar__meta,
+  .catalog-quick-toolbar__search {
+    width: 100%;
+  }
+
   .catalog-title-block {
     align-items: stretch;
     flex-direction: column;
