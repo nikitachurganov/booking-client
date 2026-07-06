@@ -1,5 +1,5 @@
 /**
- * @typedef {'available' | 'noSlots' | 'moderation' | 'restricted' | 'documents' | 'unavailable'} BookingObjectCatalogStatus
+ * @typedef {'available' | 'noSlots' | 'moderation' | 'documents' | 'unavailable'} BookingObjectCatalogStatus
  */
 
 /**
@@ -17,31 +17,57 @@
  */
 
 /**
+ * @typedef {Object} BookingService
+ * @property {string} id
+ * @property {string} title
+ * @property {number} durationHours
+ */
+
+/**
+ * @typedef {Object} BookingCharacteristic
+ * @property {string} label
+ * @property {string} value
+ */
+
+/**
  * @typedef {Object} BookingDocument
  * @property {string} id
  * @property {string} title
- * @property {string} url
+ * @property {string | undefined} url
+ * @property {string} content
  * @property {boolean} required
  * @property {boolean} viewed
  */
 
 /**
+ * @typedef {Object} BookingRequirement
+ * @property {string} id
+ * @property {string} title
+ * @property {string} description
+ * @property {'manual' | 'document'} kind
+ * @property {boolean | undefined} complete
+ * @property {string | undefined} documentId
+ */
+
+/**
  * @typedef {Object} BookingObject
  * @property {string} id
+ * @property {string} equipmentId
  * @property {string} title
  * @property {string} type
  * @property {string} category
+ * @property {string} laboratory
  * @property {string} imageUrl
  * @property {string} description
  * @property {string} location
  * @property {string} room
  * @property {string} department
- * @property {string[]} services
+ * @property {BookingService[]} services
+ * @property {BookingCharacteristic[]} characteristics
  * @property {string[]} assets
- * @property {(string | BookingDocument)[]} documents
+ * @property {BookingDocument[]} documents
+ * @property {BookingRequirement[]} requirements
  * @property {BookingSlot[]} slots
- * @property {boolean} requiresDocuments
- * @property {boolean} requiresInstruction
  * @property {boolean} moderationRequired
  * @property {boolean} restrictedAccess
  * @property {boolean} requiresCheckIn
@@ -53,30 +79,30 @@
  */
 
 /**
+ * @typedef {Object} BookingRequest
+ * @property {string} id
+ * @property {string} objectId
+ * @property {string} objectTitle
+ * @property {string} equipmentId
+ * @property {string} serviceTitle
+ * @property {string} slotLabel
+ * @property {string} purpose
+ * @property {'moderation'} status
+ * @property {string} createdAt
+ */
+
+/**
  * @typedef {Object} BookingObjectsFilters
  * @property {string} search
- * @property {[string | undefined, string | undefined] | undefined} dateRange
- * @property {[string | undefined, string | undefined] | undefined} timeRange
- * @property {[number | undefined, number | undefined] | undefined} durationRange
- * @property {string | undefined} category
  * @property {string | undefined} type
- * @property {string | undefined} location
- * @property {string | undefined} service
- * @property {BookingObjectCatalogStatus | undefined} availability
- * @property {boolean} hasRequiredDocuments
- * @property {boolean} requiresInstruction
- * @property {boolean} requiresModeration
- * @property {boolean} requiresCheckIn
- * @property {boolean} requiresCheckOut
- * @property {boolean} collectiveBooking
- * @property {boolean} withSubAssets
+ * @property {string | undefined} laboratory
+ * @property {string | undefined} availability
  */
 
 export const bookingObjectCatalogStatuses = [
   'available',
   'noSlots',
   'moderation',
-  'restricted',
   'documents',
   'unavailable',
 ];

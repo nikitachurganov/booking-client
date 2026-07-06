@@ -1,5 +1,5 @@
 <script setup>
-import { CalendarOutlined, EnvironmentOutlined } from '@ant-design/icons-vue';
+import { CalendarOutlined, EnvironmentOutlined, SafetyCertificateOutlined } from '@ant-design/icons-vue';
 
 defineProps({
   object: {
@@ -10,37 +10,17 @@ defineProps({
 
 const emit = defineEmits(['open']);
 
-function getSlotText(object) {
-  return object.visibleSlot ? object.availabilityLabel : 'Нет доступных слотов';
+const statusConfig = {
+  available: { color: 'success', label: 'Доступно' },
+  documents: { color: 'warning', label: 'Нужны документы' },
+  moderation: { color: 'processing', label: 'На модерации' },
+  noSlots: { color: 'default', label: 'Нет слотов' },
+  unavailable: { color: 'error', label: 'Недоступно' },
+};
+
+function getStatus(object) {
+  return statusConfig[object.catalogStatus] ?? statusConfig.unavailable;
 }
-
-function getAdditionalSlotsText(object) {
-  if (!object.additionalSlotsCount) {
-    return '';
-  }
-
-  return `ещё ${object.additionalSlotsCount} ${getSlotWord(object.additionalSlotsCount)}`;
-}
-
-function getSlotWord(count) {
-  const lastDigit = count % 10;
-  const lastTwoDigits = count % 100;
-
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
-    return 'слотов';
-  }
-
-  if (lastDigit === 1) {
-    return 'слот';
-  }
-
-  if (lastDigit >= 2 && lastDigit <= 4) {
-    return 'слота';
-  }
-
-  return 'слотов';
-}
-
 </script>
 
 <template>
@@ -56,16 +36,17 @@ function getSlotWord(count) {
   >
     <div class="booking-object-card__image-wrap">
       <img class="booking-object-card__image" :src="object.imageUrl" :alt="object.title" />
-      <a-tag
-        v-if="object.requiresDocuments"
-        color="warning"
-        class="booking-object-card__requirement-tag"
-      >
-        Требуется ознакомление
+      <a-tag :color="getStatus(object).color" class="booking-object-card__requirement-tag">
+        {{ getStatus(object).label }}
       </a-tag>
     </div>
 
     <div class="booking-object-card__body">
+      <div class="booking-object-card__eyebrow">
+        <span>{{ object.equipmentId }}</span>
+        <span>{{ object.type }}</span>
+      </div>
+
       <a-typography-title :level="5" :ellipsis="{ rows: 1 }" class="booking-object-card__title">
         {{ object.title }}
       </a-typography-title>
@@ -73,21 +54,20 @@ function getSlotWord(count) {
       <div class="booking-object-card__info-list">
         <div class="booking-object-card__info-row">
           <CalendarOutlined class="booking-object-card__info-icon" />
-          <span class="booking-object-card__info-main">{{ getSlotText(object) }}</span>
-          <span
-            v-if="getAdditionalSlotsText(object)"
-            class="booking-object-card__dot"
-            aria-hidden="true"
-          />
-          <span v-if="getAdditionalSlotsText(object)" class="booking-object-card__info-extra">
-            {{ getAdditionalSlotsText(object) }}
-          </span>
+          <span class="booking-object-card__info-main">{{ object.availabilityLabel }}</span>
         </div>
 
         <div class="booking-object-card__info-row">
           <EnvironmentOutlined class="booking-object-card__info-icon" />
           <span class="booking-object-card__info-main">
-            {{ object.location }}, {{ object.room }}
+            {{ object.laboratory }} · {{ object.location }}, {{ object.room }}
+          </span>
+        </div>
+
+        <div class="booking-object-card__info-row">
+          <SafetyCertificateOutlined class="booking-object-card__info-icon" />
+          <span class="booking-object-card__info-main">
+            Допуски: {{ object.completedRequirementsCount }} из {{ object.requirementsCount }}
           </span>
         </div>
       </div>
