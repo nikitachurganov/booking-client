@@ -3,11 +3,26 @@
  */
 
 /**
+ * @typedef {'available' | 'booked' | 'requested' | 'unavailable'} BookingSlotStatus
+ */
+
+/**
  * @typedef {Object} BookingSlot
+ * @property {string | undefined} id
  * @property {string} date
  * @property {string} start
  * @property {string} end
  * @property {boolean} available
+ * @property {BookingSlotStatus | undefined} status
+ */
+
+/**
+ * @typedef {Object} BookingDocument
+ * @property {string} id
+ * @property {string} title
+ * @property {string} url
+ * @property {boolean} required
+ * @property {boolean} viewed
  */
 
 /**
@@ -23,7 +38,7 @@
  * @property {string} department
  * @property {string[]} services
  * @property {string[]} assets
- * @property {string[]} documents
+ * @property {(string | BookingDocument)[]} documents
  * @property {BookingSlot[]} slots
  * @property {boolean} requiresDocuments
  * @property {boolean} requiresInstruction

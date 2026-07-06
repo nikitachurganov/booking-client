@@ -22,7 +22,7 @@ const bookingObjects = [
     slots: [
       { date: '2026-07-01', start: '14:00', end: '16:00', available: true },
       { date: '2026-07-02', start: '10:00', end: '12:00', available: true },
-      { date: '2026-07-03', start: '15:00', end: '17:00', available: false },
+      { date: '2026-07-03', start: '15:00', end: '17:00', available: false, status: 'requested' },
     ],
     requiresDocuments: true,
     requiresInstruction: true,
@@ -50,7 +50,7 @@ const bookingObjects = [
     assets: ['Проектор', 'Микрофоны', 'Система видеосвязи'],
     documents: ['Правила использования площадки'],
     slots: [
-      { date: '2026-07-01', start: '10:00', end: '12:00', available: false },
+      { date: '2026-07-01', start: '10:00', end: '12:00', available: false, status: 'booked' },
       { date: '2026-07-02', start: '10:00', end: '12:00', available: true },
       { date: '2026-07-02', start: '15:00', end: '18:00', available: true },
     ],
@@ -222,7 +222,7 @@ const bookingObjects = [
     assets: ['VR-шлемы', 'Контроллеры', 'Рабочая станция'],
     documents: ['Инструкция VR-комплекта'],
     slots: [
-      { date: '2026-07-01', start: '14:00', end: '16:00', available: false },
+      { date: '2026-07-01', start: '14:00', end: '16:00', available: false, status: 'unavailable' },
       { date: '2026-07-02', start: '14:00', end: '16:00', available: true },
     ],
     requiresDocuments: false,

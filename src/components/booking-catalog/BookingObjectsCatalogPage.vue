@@ -7,7 +7,7 @@ import {
 } from '../../services/bookingObjectsService';
 import BookingObjectsFilters from './BookingObjectsFilters.vue';
 import BookingObjectsGrid from './BookingObjectsGrid.vue';
-import BookingObjectStatusTag from './BookingObjectStatusTag.vue';
+import BookingObjectModal from './BookingObjectModal.vue';
 
 const defaultFilters = {
   search: '',
@@ -233,12 +233,6 @@ const emptyDescription = computed(() =>
   activeSection.value === 'catalog'
     ? 'Попробуйте изменить параметры поиска или сбросить фильтры.'
     : 'Здесь появятся ваши заявки и бронирования.',
-);
-
-const selectedObjectDocuments = computed(() =>
-  selectedObject.value?.documents.length
-    ? selectedObject.value.documents
-    : ['Документы не требуются'],
 );
 
 const selectedDrawerDocuments = computed(() =>
@@ -911,111 +905,9 @@ function formatStatus(status) {
       </template>
     </a-drawer>
 
-    <a-drawer
+    <BookingObjectModal
       v-model:open="isDetailsOpen"
-      width="520"
-      :title="selectedObject?.title"
-      placement="right"
-      class="catalog-drawer"
-    >
-      <template v-if="selectedObject">
-        <img
-          class="catalog-drawer__image"
-          :src="selectedObject.imageUrl"
-          :alt="selectedObject.title"
-        />
-
-        <a-space direction="vertical" :size="16" class="catalog-drawer__content">
-          <a-space wrap>
-            <BookingObjectStatusTag :status="selectedObject.catalogStatus" />
-            <a-tag color="blue">{{ selectedObject.category }}</a-tag>
-            <a-tag>{{ selectedObject.type }}</a-tag>
-          </a-space>
-
-          <a-alert
-            v-if="selectedObject.catalogStatus !== 'available'"
-            type="info"
-            show-icon
-            :message="selectedObject.availabilityLabel"
-            description="Можно посмотреть ближайшие слоты или уточнить условия у ответственного."
-          />
-
-          <a-typography-paragraph>
-            {{ selectedObject.description }}
-          </a-typography-paragraph>
-
-          <a-descriptions :column="1" size="small" bordered>
-            <a-descriptions-item label="Локация">
-              {{ selectedObject.location }}, {{ selectedObject.room }}
-            </a-descriptions-item>
-            <a-descriptions-item label="Доступность">
-              {{ selectedObject.availabilityLabel }}
-            </a-descriptions-item>
-            <a-descriptions-item label="Услуги">
-              <a-space wrap :size="[4, 4]">
-                <a-tag v-for="service in selectedObject.services" :key="service">
-                  {{ service }}
-                </a-tag>
-              </a-space>
-            </a-descriptions-item>
-            <a-descriptions-item label="Оборудование внутри">
-              <a-space wrap :size="[4, 4]">
-                <a-tag v-for="asset in selectedObject.assets" :key="asset">
-                  {{ asset }}
-                </a-tag>
-              </a-space>
-            </a-descriptions-item>
-            <a-descriptions-item label="Документы">
-              <a-space wrap :size="[4, 4]">
-                <a-tag v-for="document in selectedObjectDocuments" :key="document">
-                  {{ document }}
-                </a-tag>
-              </a-space>
-            </a-descriptions-item>
-            <a-descriptions-item label="Условия">
-              <a-space wrap :size="[4, 4]">
-                <a-tag v-if="selectedObject.requiresDocuments">Нужны документы</a-tag>
-                <a-tag v-if="selectedObject.requiresInstruction">Нужен инструктаж</a-tag>
-                <a-tag v-if="selectedObject.moderationRequired">Требуется подтверждение</a-tag>
-                <a-tag v-if="selectedObject.restrictedAccess" color="red">Доступ ограничен</a-tag>
-                <a-tag v-if="selectedObject.requiresCheckIn">Check-in</a-tag>
-                <a-tag v-if="selectedObject.requiresCheckOut">Check-out</a-tag>
-                <a-tag v-if="selectedObject.collectiveBooking">Коллективное бронирование</a-tag>
-              </a-space>
-            </a-descriptions-item>
-            <a-descriptions-item label="Ответственный">
-              {{ selectedObject.contactPerson }}
-            </a-descriptions-item>
-            <a-descriptions-item label="Модератор">
-              {{ selectedObject.moderator }}
-            </a-descriptions-item>
-          </a-descriptions>
-
-          <a-card class="catalog-drawer__slots" :body-style="{ padding: '12px' }">
-            <a-typography-title :level="5">Ближайшие слоты</a-typography-title>
-            <a-list size="small" :data-source="selectedObject.matchingSlots">
-              <template #renderItem="{ item }">
-                <a-list-item>
-                  <span>{{ formatSlot(item) }}</span>
-                  <a-tag color="success">Можно выбрать</a-tag>
-                </a-list-item>
-              </template>
-            </a-list>
-          </a-card>
-        </a-space>
-      </template>
-
-      <template #footer>
-        <div class="catalog-drawer__footer">
-          <a-button @click="isDetailsOpen = false">Закрыть</a-button>
-          <a-button
-            type="primary"
-            :disabled="!selectedObject?.canBook"
-          >
-            {{ selectedObject?.actionLabel ?? 'Выбрать слот' }}
-          </a-button>
-        </div>
-      </template>
-    </a-drawer>
+      :object="selectedObject"
+    />
   </div>
 </template>
