@@ -44,7 +44,7 @@ function getStatus(object) {
     <div class="booking-object-card__body">
       <div class="booking-object-card__eyebrow">
         <span>{{ object.equipmentId }}</span>
-        <span>{{ object.type }}</span>
+        <span>{{ object.showcaseGroupLabel || object.type }}</span>
       </div>
 
       <a-typography-title :level="5" :ellipsis="{ rows: 1 }" class="booking-object-card__title">

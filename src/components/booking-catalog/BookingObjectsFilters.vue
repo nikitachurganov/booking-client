@@ -14,6 +14,10 @@ const props = defineProps({
     type: Number,
     required: true,
   },
+  groupLabel: {
+    type: String,
+    default: '',
+  },
 });
 
 const emit = defineEmits(['update:modelValue', 'reset']);
@@ -44,20 +48,22 @@ function updateFilter(key, value) {
     <div class="catalog-filters__header">
       <div>
         <a-typography-title :level="5">Фильтры каталога</a-typography-title>
-        <a-typography-text type="secondary">Найдено объектов: {{ resultCount }}</a-typography-text>
+        <a-typography-text type="secondary">
+          {{ groupLabel || 'Выбранная группа' }} · найдено объектов: {{ resultCount }}
+        </a-typography-text>
       </div>
-      <a-button type="link" size="small" @click="emit('reset')">Сбросить всё</a-button>
+      <a-button type="link" size="small" @click="emit('reset')">Сбросить фильтры</a-button>
     </div>
 
     <a-divider class="catalog-filters__divider" />
 
     <a-space direction="vertical" :size="12" class="catalog-filters__inner">
       <label class="catalog-filter-field">
-        <span>Тип оборудования</span>
+        <span>Тип объекта</span>
         <a-select
           :value="filters.type"
           allow-clear
-          aria-label="Фильтр по типу оборудования"
+          aria-label="Фильтр по типу объекта"
           placeholder="Любой тип"
           @change="(value) => updateFilter('type', value)"
         >

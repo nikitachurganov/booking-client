@@ -4,6 +4,7 @@ import { FilterFilled } from '@ant-design/icons-vue';
 import {
   fetchBookingObjects,
   getBookingObjectsFilterOptions,
+  getBookingShowcaseGroups,
 } from '../../services/bookingObjectsService';
 import BookingObjectsFilters from './BookingObjectsFilters.vue';
 import BookingObjectsGrid from './BookingObjectsGrid.vue';
@@ -25,6 +26,7 @@ const isDetailsOpen = ref(false);
 const isFiltersOpen = ref(false);
 const filters = ref({ ...defaultFilters });
 const activeSection = ref('catalog');
+const selectedGroup = ref(undefined);
 
 const sectionOptions = [
   { label: 'Каталог', value: 'catalog' },
@@ -32,36 +34,48 @@ const sectionOptions = [
   { label: 'Мои бронирования', value: 'bookings' },
 ];
 
-const filterOptions = computed(() => getBookingObjectsFilterOptions(objects.value));
+const showcaseGroups = getBookingShowcaseGroups();
 
 const enrichedObjects = computed(() => objects.value.map((object) => enrichObject(object)));
+
+const selectedGroupConfig = computed(
+  () => showcaseGroups.find((group) => group.value === selectedGroup.value) ?? null,
+);
+
+const groupCards = computed(() =>
+  showcaseGroups.map((group) => {
+    const groupObjects = enrichedObjects.value.filter((object) => object.showcaseGroup === group.value);
+
+    return {
+      ...group,
+      count: groupObjects.length,
+      examples: groupObjects.slice(0, 2).map((object) => object.title),
+      nextSlot: groupObjects
+        .filter((object) => object.nextSlot)
+        .sort((left, right) => getSlotScore(left.nextSlot) - getSlotScore(right.nextSlot))[0]?.availabilityLabel,
+    };
+  }),
+);
+
+const groupObjects = computed(() =>
+  selectedGroup.value
+    ? enrichedObjects.value.filter((object) => object.showcaseGroup === selectedGroup.value)
+    : enrichedObjects.value,
+);
+
+const filterOptions = computed(() => getBookingObjectsFilterOptions(groupObjects.value));
 
 const selectedObject = computed(() =>
   enrichedObjects.value.find((object) => object.id === selectedObjectId.value) ?? null,
 );
 
+const searchQuery = computed(() => filters.value.search.trim().toLowerCase());
+
+const hasSearchQuery = computed(() => Boolean(searchQuery.value));
+
 const filteredObjects = computed(() => {
-  const search = filters.value.search.trim().toLowerCase();
-
-  const filtered = enrichedObjects.value.filter((object) => {
-    const searchFields = [
-      object.title,
-      object.equipmentId,
-      object.description,
-      object.type,
-      object.category,
-      object.laboratory,
-      object.location,
-      object.room,
-      object.department,
-      ...object.services.map((service) => service.title),
-      ...object.characteristics.flatMap((item) => [item.label, item.value]),
-      ...object.assets,
-    ]
-      .join(' ')
-      .toLowerCase();
-
-    const matchesSearch = !search || searchFields.includes(search);
+  const filtered = groupObjects.value.filter((object) => {
+    const matchesSearch = !searchQuery.value || getObjectSearchText(object).includes(searchQuery.value);
     const matchesType = !filters.value.type || object.type === filters.value.type;
     const matchesLaboratory =
       !filters.value.laboratory || object.laboratory === filters.value.laboratory;
@@ -74,19 +88,56 @@ const filteredObjects = computed(() => {
   return sortObjects(filtered);
 });
 
-const hasActiveFilters = computed(() =>
+const globalSearchResults = computed(() => {
+  if (!hasSearchQuery.value) {
+    return [];
+  }
+
+  return sortObjects(
+    enrichedObjects.value.filter((object) => getObjectSearchText(object).includes(searchQuery.value)),
+  );
+});
+
+const visibleCatalogObjects = computed(() =>
+  selectedGroup.value ? filteredObjects.value : globalSearchResults.value,
+);
+
+const isShowcaseHome = computed(() =>
+  activeSection.value === 'catalog' && !selectedGroup.value && !hasSearchQuery.value,
+);
+
+const hasActiveCatalogFilters = computed(() =>
   Boolean(
-    filters.value.search ||
-      filters.value.type ||
+    filters.value.type ||
       filters.value.laboratory ||
       filters.value.availability,
   ),
 );
 
+const hasActiveFilters = computed(() => Boolean(hasSearchQuery.value || hasActiveCatalogFilters.value));
+
 const emptyDescription = computed(() =>
   activeSection.value === 'catalog'
-    ? 'Попробуйте изменить параметры поиска или сбросить фильтры.'
+    ? selectedGroup.value
+      ? 'В этой группе нет объектов по выбранным условиям. Измените поиск или фильтры.'
+      : 'По такому запросу ничего не найдено. Проверьте название, ID, аудиторию или услугу.'
     : 'Здесь появятся ваши заявки и бронирования.',
+);
+
+const catalogTitle = computed(() =>
+  selectedGroupConfig.value ? selectedGroupConfig.value.label : 'Бронирование',
+);
+
+const catalogSubtitle = computed(() =>
+  selectedGroupConfig.value
+    ? 'Реестр объектов выбранной группы: поиск, фильтры и бронирование'
+    : 'Найдите объект по названию или выберите группу бронирования',
+);
+
+const catalogResultLabel = computed(() =>
+  selectedGroup.value
+    ? `Найдено в группе: ${filteredObjects.value.length}`
+    : `Найдено по всем группам: ${globalSearchResults.value.length}`,
 );
 
 onMounted(async () => {
@@ -103,6 +154,20 @@ function resetFilters() {
   filters.value = { ...defaultFilters };
 }
 
+function resetCatalogView() {
+  selectedGroup.value = undefined;
+  filters.value = { ...defaultFilters };
+}
+
+function clearCatalogFilters() {
+  filters.value = {
+    ...filters.value,
+    type: undefined,
+    laboratory: undefined,
+    availability: undefined,
+  };
+}
+
 function updateFilter(key, value) {
   filters.value = {
     ...filters.value,
@@ -113,6 +178,15 @@ function updateFilter(key, value) {
 function openDetails(object) {
   selectedObjectId.value = object.id;
   isDetailsOpen.value = true;
+}
+
+function selectGroup(groupValue) {
+  selectedGroup.value = groupValue;
+  filters.value = { ...defaultFilters };
+}
+
+function getGroupLabel(groupValue) {
+  return showcaseGroups.find((group) => group.value === groupValue)?.label ?? 'Группа';
 }
 
 function handleDocumentViewed({ objectId, documentId }) {
@@ -175,6 +249,7 @@ function enrichObject(object) {
 
   return {
     ...object,
+    showcaseGroupLabel: getGroupLabel(object.showcaseGroup),
     requirementStates,
     requirementsCount: requirementStates.length,
     completedRequirementsCount: requirementStates.length - incompleteRequirements.length,
@@ -196,6 +271,26 @@ function sortObjects(items) {
 
     return left.title.localeCompare(right.title, 'ru');
   });
+}
+
+function getObjectSearchText(object) {
+  return [
+    object.title,
+    object.equipmentId,
+    object.description,
+    object.type,
+    object.category,
+    object.laboratory,
+    object.location,
+    object.room,
+    object.department,
+    getGroupLabel(object.showcaseGroup),
+    ...object.services.map((service) => service.title),
+    ...object.characteristics.flatMap((item) => [item.label, item.value]),
+    ...object.assets,
+  ]
+    .join(' ')
+    .toLowerCase();
 }
 
 function getSlotStatus(slot) {
@@ -263,10 +358,10 @@ function formatRequestDate(value) {
         <div class="catalog-title-block">
           <div>
             <a-typography-title id="catalog-title" :level="4">
-              Бронирование рабочего места
+              {{ catalogTitle }}
             </a-typography-title>
             <a-typography-text type="secondary">
-              Каталог оборудования, допуски и заявки на бронирование
+              {{ catalogSubtitle }}
             </a-typography-text>
           </div>
 
@@ -283,13 +378,13 @@ function formatRequestDate(value) {
                   class="catalog-quick-toolbar__search"
                   :value="filters.search"
                   allow-clear
-                  aria-label="Поиск по оборудованию"
-                  placeholder="Поиск по названию или ID"
+                  aria-label="Поиск по объектам бронирования"
+                  placeholder="Поиск по названию, ID, аудитории или услуге"
                   @input="(event) => updateFilter('search', event.target.value)"
                   @change="(event) => updateFilter('search', event.target.value)"
                 />
 
-                <a-badge :dot="hasActiveFilters">
+                <a-badge v-if="selectedGroup" :dot="hasActiveCatalogFilters">
                   <a-button
                     class="catalog-quick-toolbar__filter-button"
                     aria-label="Все фильтры"
@@ -307,10 +402,19 @@ function formatRequestDate(value) {
                 >
                   Очистить
                 </a-button>
+
+                <a-button
+                  v-if="selectedGroup"
+                  type="link"
+                  class="catalog-quick-toolbar__clear"
+                  @click="resetCatalogView"
+                >
+                  Все группы
+                </a-button>
               </div>
 
               <a-typography-text type="secondary">
-                Найдено: {{ filteredObjects.length }}
+                {{ catalogResultLabel }}
               </a-typography-text>
             </div>
           </div>
@@ -324,15 +428,51 @@ function formatRequestDate(value) {
             description="Обновите страницу или повторите запрос позже."
           />
 
-          <BookingObjectsGrid
-            v-else-if="activeSection === 'catalog'"
-            :objects="filteredObjects"
-            :loading="isLoading"
-            :empty-description="emptyDescription"
-            :show-reset="hasActiveFilters"
-            @open="openDetails"
-            @reset="resetFilters"
-          />
+          <template v-else-if="activeSection === 'catalog'">
+            <div v-if="isShowcaseHome" class="booking-showcase">
+              <button
+                v-for="group in groupCards"
+                :key="group.value"
+                type="button"
+                class="booking-showcase-card"
+                @click="selectGroup(group.value)"
+              >
+                <span class="booking-showcase-card__head">
+                  <span class="booking-showcase-card__title">{{ group.label }}</span>
+                  <a-tag>{{ group.count }}</a-tag>
+                </span>
+                <span class="booking-showcase-card__description">{{ group.description }}</span>
+                <span v-if="group.examples.length" class="booking-showcase-card__examples">
+                  {{ group.examples.join(' · ') }}
+                </span>
+                <span v-else class="booking-showcase-card__examples">
+                  Объекты появятся после настройки реестра
+                </span>
+                <span v-if="group.nextSlot" class="booking-showcase-card__meta">
+                  Ближайший слот: {{ group.nextSlot }}
+                </span>
+              </button>
+            </div>
+
+            <div v-else-if="selectedGroup" class="catalog-group-context">
+              <a-button type="link" class="catalog-group-context__back" @click="resetCatalogView">
+                Все группы
+              </a-button>
+              <a-typography-text type="secondary">
+                {{ selectedGroupConfig?.description }}
+              </a-typography-text>
+            </div>
+
+            <BookingObjectsGrid
+              v-if="!isShowcaseHome"
+              :objects="visibleCatalogObjects"
+              :loading="isLoading"
+              :empty-description="emptyDescription"
+              :show-reset="hasActiveFilters"
+              @open="openDetails"
+              @reset="resetFilters"
+            />
+          </template>
 
           <a-card v-else-if="activeSection === 'requests'" class="catalog-requests-card">
             <template #title>Мои заявки</template>
@@ -380,7 +520,8 @@ function formatRequestDate(value) {
         v-model="filters"
         :filter-options="filterOptions"
         :result-count="filteredObjects.length"
-        @reset="resetFilters"
+        :group-label="selectedGroupConfig?.label"
+        @reset="clearCatalogFilters"
       />
     </a-drawer>
 

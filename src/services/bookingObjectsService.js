@@ -3,12 +3,51 @@
  * booking flow can be demonstrated without backend/API integration.
  */
 
+export const bookingShowcaseGroups = [
+  {
+    value: 'equipment',
+    label: 'Оборудование',
+    description: 'Приборы, лабораторная техника и рабочие комплекты',
+  },
+  {
+    value: 'services',
+    label: 'Услуги и работы',
+    description: 'Запись, трансляции, подготовка материалов и сопровождаемые работы',
+  },
+  {
+    value: 'workplaces',
+    label: 'Рабочие места',
+    description: 'Индивидуальные места для самостоятельной работы и проектных команд',
+  },
+  {
+    value: 'meeting-rooms',
+    label: 'Переговорные',
+    description: 'Комнаты для встреч, созвонов и командных обсуждений',
+  },
+  {
+    value: 'classrooms',
+    label: 'Учебные помещения',
+    description: 'Аудитории, компьютерные классы и пространства для занятий',
+  },
+  {
+    value: 'event-spaces',
+    label: 'Событийные площадки',
+    description: 'Залы и площадки для лекций, презентаций и мероприятий',
+  },
+  {
+    value: 'sports',
+    label: 'Спортивные объекты',
+    description: 'Залы, площадки и спортивная инфраструктура',
+  },
+];
+
 /** @type {import('../types/bookingObject').BookingObject[]} */
 const bookingObjects = [
   {
     id: 'spectrometer-l500',
     equipmentId: 'SP-L500-001',
     title: 'Спектрометр L500',
+    showcaseGroup: 'equipment',
     type: 'Научное оборудование',
     category: 'Исследования и измерения',
     laboratory: 'Лаборатория оптических измерений',
@@ -82,6 +121,7 @@ const bookingObjects = [
     id: 'microscope-m220',
     equipmentId: 'MC-M220-014',
     title: 'Микроскоп M220',
+    showcaseGroup: 'equipment',
     type: 'Научное оборудование',
     category: 'Исследования и измерения',
     laboratory: 'Лаборатория биотехнологий',
@@ -138,6 +178,7 @@ const bookingObjects = [
     id: 'conference-a301',
     equipmentId: 'RM-A301-022',
     title: 'Конференц-зал Атриум',
+    showcaseGroup: 'event-spaces',
     type: 'Помещение',
     category: 'Встречи и мероприятия',
     laboratory: 'Административный департамент',
@@ -178,6 +219,7 @@ const bookingObjects = [
     id: 'media-studio-b120',
     equipmentId: 'ST-B120-003',
     title: 'Медиа-студия B120',
+    showcaseGroup: 'services',
     type: 'Студия',
     category: 'Запись и трансляции',
     laboratory: 'Медиацентр',
@@ -234,6 +276,7 @@ const bookingObjects = [
     id: 'meeting-l308',
     equipmentId: 'RM-L308-009',
     title: 'Переговорная L308',
+    showcaseGroup: 'meeting-rooms',
     type: 'Помещение',
     category: 'Встречи и мероприятия',
     laboratory: 'Административный департамент',
@@ -262,6 +305,138 @@ const bookingObjects = [
     moderator: 'Служба эксплуатации',
     subAssetsCount: 0,
   },
+  {
+    id: 'coworking-c405',
+    equipmentId: 'WP-C405-018',
+    title: 'Рабочее место C405',
+    showcaseGroup: 'workplaces',
+    type: 'Рабочее место',
+    category: 'Индивидуальная работа',
+    laboratory: 'Коворкинг кампуса',
+    imageUrl: '/images/spectrometer.png',
+    description:
+      'Индивидуальное место с монитором и розетками для самостоятельной работы, подготовки проектов и онлайн-встреч.',
+    location: 'Корпус C',
+    room: 'C405',
+    department: 'Студенческий офис',
+    services: [{ id: 'desk-work', title: 'Работа за столом', durationHours: 2 }],
+    characteristics: [
+      { label: 'Оснащение', value: 'Монитор, розетки' },
+      { label: 'Режим', value: 'Тихая зона' },
+      { label: 'Лимит', value: '4 часа' },
+    ],
+    assets: ['Монитор', 'Кресло', 'Настольная лампа'],
+    documents: [],
+    requirements: [],
+    slots: [
+      { id: 'wp-1', date: '2026-07-08', start: '09:00', end: '11:00', available: true },
+      { id: 'wp-2', date: '2026-07-08', start: '12:00', end: '14:00', available: true },
+      { id: 'wp-3', date: '2026-07-09', start: '15:00', end: '17:00', available: false, status: 'booked' },
+    ],
+    moderationRequired: false,
+    restrictedAccess: false,
+    requiresCheckIn: true,
+    requiresCheckOut: true,
+    collectiveBooking: false,
+    contactPerson: 'Студенческий офис',
+    moderator: 'Студенческий офис',
+    subAssetsCount: 0,
+  },
+  {
+    id: 'classroom-d214',
+    equipmentId: 'CL-D214-031',
+    title: 'Учебная аудитория D214',
+    showcaseGroup: 'classrooms',
+    type: 'Учебное помещение',
+    category: 'Занятия и семинары',
+    laboratory: 'Учебный департамент',
+    imageUrl: '/images/spectrometer.png',
+    description:
+      'Аудитория для семинаров и практических занятий до 32 человек. Доступна для преподавателей и организаторов учебных активностей.',
+    location: 'Корпус D',
+    room: 'D214',
+    department: 'Учебный департамент',
+    services: [
+      { id: 'seminar', title: 'Семинар', durationHours: 2 },
+      { id: 'practice-class', title: 'Практическое занятие', durationHours: 2 },
+    ],
+    characteristics: [
+      { label: 'Вместимость', value: '32 человека' },
+      { label: 'Оснащение', value: 'Проектор, доска' },
+      { label: 'Подтверждение', value: 'Требуется' },
+    ],
+    assets: ['Проектор', 'Маркерная доска', 'Компьютер преподавателя'],
+    documents: [],
+    requirements: [],
+    slots: [
+      { id: 'cl-1', date: '2026-07-08', start: '08:30', end: '10:00', available: true },
+      { id: 'cl-2', date: '2026-07-09', start: '10:15', end: '11:45', available: true },
+    ],
+    moderationRequired: true,
+    restrictedAccess: false,
+    requiresCheckIn: false,
+    requiresCheckOut: false,
+    collectiveBooking: true,
+    contactPerson: 'Марина Соколова',
+    moderator: 'Учебный департамент',
+    subAssetsCount: 0,
+  },
+  {
+    id: 'sport-hall-s1',
+    equipmentId: 'SPT-S1-007',
+    title: 'Спортивный зал S1',
+    showcaseGroup: 'sports',
+    type: 'Спортивный объект',
+    category: 'Тренировки и секции',
+    laboratory: 'Спортивный клуб',
+    imageUrl: '/images/spectrometer.png',
+    description:
+      'Зал для командных тренировок, секций и студенческих спортивных мероприятий. Для бронирования нужен ответственный организатор.',
+    location: 'Спорткомплекс',
+    room: 'S1',
+    department: 'Спортивный клуб',
+    services: [
+      { id: 'team-training', title: 'Командная тренировка', durationHours: 2 },
+      { id: 'sport-event', title: 'Спортивное мероприятие', durationHours: 3 },
+    ],
+    characteristics: [
+      { label: 'Покрытие', value: 'Паркет' },
+      { label: 'Инвентарь', value: 'По запросу' },
+      { label: 'Доступ', value: 'Через модерацию' },
+    ],
+    assets: ['Раздевалки', 'Табло', 'Спортивный инвентарь'],
+    documents: [
+      {
+        id: 'sport-safety',
+        title: 'Правила использования спортивного зала',
+        required: true,
+        viewed: false,
+        content:
+          'Перед занятием проверьте состояние площадки и наличие ответственного организатора. Используйте зал только в спортивной обуви. После тренировки верните инвентарь и освободите помещение вовремя.',
+      },
+    ],
+    requirements: [
+      {
+        id: 'sport-safety',
+        title: 'Правила спортивного объекта',
+        description: 'Нужно изучить перед бронированием',
+        kind: 'document',
+        documentId: 'sport-safety',
+      },
+    ],
+    slots: [
+      { id: 'spth-1', date: '2026-07-08', start: '18:00', end: '20:00', available: true },
+      { id: 'spth-2', date: '2026-07-10', start: '16:00', end: '18:00', available: true },
+    ],
+    moderationRequired: true,
+    restrictedAccess: false,
+    requiresCheckIn: true,
+    requiresCheckOut: true,
+    collectiveBooking: true,
+    contactPerson: 'Спортивный клуб',
+    moderator: 'Спортивный клуб',
+    subAssetsCount: 0,
+  },
 ];
 
 export async function fetchBookingObjects() {
@@ -278,4 +453,8 @@ export function getBookingObjectsFilterOptions(objects) {
     laboratories: [...new Set(objects.map((object) => object.laboratory))],
     services: [...new Set(objects.flatMap((object) => object.services.map((service) => service.title)))],
   };
+}
+
+export function getBookingShowcaseGroups() {
+  return bookingShowcaseGroups;
 }

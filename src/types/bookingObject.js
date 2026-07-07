@@ -54,6 +54,7 @@
  * @property {string} id
  * @property {string} equipmentId
  * @property {string} title
+ * @property {string} showcaseGroup
  * @property {string} type
  * @property {string} category
  * @property {string} laboratory
