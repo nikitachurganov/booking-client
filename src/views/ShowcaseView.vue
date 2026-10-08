@@ -460,6 +460,12 @@ const selectCategory = (id: string | number) => router.replace({ name: 'showcase
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 8px;
 }
+/* планшеты: ровно две колонки */
+@media (min-width: 561px) and (max-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 .list {
   display: flex;
   flex-direction: column;

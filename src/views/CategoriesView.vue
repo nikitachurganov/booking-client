@@ -169,7 +169,7 @@ const goBack = () => (window.history.state?.back ? router.back() : router.push({
   line-height: 22px;
   color: rgba(0, 0, 0, 0.65);
 }
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

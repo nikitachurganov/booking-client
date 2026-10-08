@@ -736,10 +736,14 @@ const missing = computed(() => [
   top: 23px;
   inset-inline-end: 24px;
 }
-/* на телефоне модал открывается на весь экран: шапка и подвал на месте, скроллится только тело */
-@media (max-width: 760px) {
+/* пока экран уже, чем нужно окну (960px + поля по 32px), модал открывается на весь экран:
+   телефон и планшет. Шапка и подвал на месте, скроллится только тело */
+@media (max-width: 1024px) {
   .object-modal .ant-modal {
+    position: fixed;
+    inset: 0;
     top: 0;
+    vertical-align: top;
     width: 100vw !important;
     max-width: 100vw;
     padding: 0;
