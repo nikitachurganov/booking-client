@@ -318,8 +318,6 @@ const submit = () => {
 /** Почему отправка недоступна — подсказка при наведении на выключенную кнопку */
 const formBlockReason = computed(() => (canSubmit.value ? '' : `Осталось: ${missing.value.join(', ')}`))
 
-const phoneHref = computed(() => `tel:${props.item?.contact.phone.replace(/[^+\d]/g, '') ?? ''}`)
-
 /** Что ещё нужно сделать до отправки заявки */
 const missing = computed(() => [
   ...(range.value ? [] : ['выбрать время']),
@@ -466,8 +464,8 @@ const missing = computed(() => [
             <dt>Контакты</dt>
             <dd>
               {{ item.contact.name }}<br />
-              <a :href="`mailto:${item.contact.email}`">{{ item.contact.email }}</a><br />
-              <a :href="phoneHref">{{ item.contact.phone }}</a>
+              {{ item.contact.email }}<br />
+              {{ item.contact.phone }}
             </dd>
           </div>
         </dl>
