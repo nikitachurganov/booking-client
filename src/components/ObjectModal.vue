@@ -3,19 +3,16 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   ApartmentOutlined,
-  ArrowLeftOutlined,
-  CheckCircleFilled,
   DownOutlined,
   EnvironmentOutlined,
-  ExclamationCircleFilled,
   LeftOutlined,
   PictureOutlined,
   RightOutlined,
   UpOutlined,
-  UserOutlined,
 } from '@ant-design/icons-vue'
 import dayjs, { type Dayjs } from 'dayjs'
 import { buildSlots, dayAvailability, fetchSlots, type BookingObject, type TimeSlot } from '@/api/objects'
+import ObjectContacts from '@/components/ObjectContacts.vue'
 import ObjectTag from '@/components/ObjectTag.vue'
 
 const props = defineProps<{ item: BookingObject | null }>()
@@ -27,8 +24,6 @@ const step = ref<'info' | 'form'>('info')
 const date = ref<Dayjs>(dayjs())
 /** Выбранные подряд слоты: индексы первого и последнего в slots */
 const selection = ref<[number, number]>()
-/** Фильтр слотов по интервалу времени (не влияет на выбор напрямую) */
-const timeFilter = ref<[Dayjs, Dayjs]>()
 const service = ref<string>()
 const purpose = ref('')
 const slots = ref<TimeSlot[]>([])
@@ -161,7 +156,14 @@ const openSheet = (d: Dayjs) => {
 watch(open, (v) => {
   if (!v) sheetOpen.value = false
 })
-const sheetFree = computed(() => (props.item ? dayAvailability(props.item.id, sheetDay.value.toDate()).free : 0))
+// свайп вниз по ручке/заголовку закрывает шторку
+let sheetY = 0
+const onSheetTouchStart = (e: TouchEvent) => {
+  sheetY = e.touches[0].clientY
+}
+const onSheetTouchEnd = (e: TouchEvent) => {
+  if (e.changedTouches[0].clientY - sheetY > 40) sheetOpen.value = false
+}
 
 const daySlots = (d: Dayjs) => (props.item ? buildSlots(props.item.id, d.toDate()) : [])
 
@@ -229,7 +231,6 @@ watch(
     step.value = 'info'
     date.value = nearest.value?.day ?? dayjs()
     selection.value = undefined
-    timeFilter.value = undefined
     photoIndex.value = 0
     service.value = undefined
     purpose.value = ''
@@ -269,21 +270,6 @@ const pickSlot = (i: number) => {
   else selection.value = [i, i]
 }
 
-/** Слот попадает в фильтр, если целиком лежит внутри интервала */
-const inFilter = (s: TimeSlot) => {
-  const f = timeFilter.value
-  if (!f) return true
-  const start = timeOf(f[0].format('HH:mm'), date.value)
-  const end = timeOf(f[1].format('HH:mm'), date.value)
-  return !timeOf(s.start, date.value).isBefore(start, 'minute') && !timeOf(s.end, date.value).isAfter(end, 'minute')
-}
-
-// выбор вне нового фильтра теряет смысл — сбрасываем
-watch(timeFilter, () => {
-  const sel = selection.value
-  if (sel && !(inFilter(slots.value[sel[0]]) && inFilter(slots.value[sel[1]]))) selection.value = undefined
-})
-
 // Слоты сгруппированы по времени суток — так проще найти нужное время
 const slotGroups = computed(() => {
   const groups = [
@@ -292,7 +278,6 @@ const slotGroups = computed(() => {
     { label: 'Вечер', items: [] as { s: TimeSlot; i: number }[] },
   ]
   slots.value.forEach((s, i) => {
-    if (!inFilter(s)) return
     const h = Number(s.start.slice(0, 2))
     groups[h < 12 ? 0 : h < 17 ? 1 : 2].items.push({ s, i })
   })
@@ -438,37 +423,35 @@ const missing = computed(() => [
 
         <!-- в форме фото уменьшается до компактной плашки -->
         <div v-else class="mini">
-          <div class="mini-photo">
-            <img v-if="images.length" :src="images[0]" :alt="item.title" />
-            <PictureOutlined v-else class="placeholder" />
+          <div class="mini-main">
+            <div class="mini-photo">
+              <img v-if="images.length" :src="images[0]" :alt="item.title" />
+              <PictureOutlined v-else class="placeholder" />
+            </div>
+            <div class="mini-text">
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.building }}, {{ item.room }}</span>
+            </div>
           </div>
-          <div class="mini-text">
-            <strong>{{ item.title }}</strong>
-            <span>{{ item.building }}, {{ item.room }}</span>
-          </div>
+          <!-- в форме контакты — внутри карточки объекта -->
+          <ObjectContacts :contact="item.contact" />
         </div>
 
-        <dl class="facts">
-          <div class="fact">
+        <!-- в форме факты не нужны: расположение и контакты уже в мини-карточке (и пустой блок не даёт лишний отступ) -->
+        <dl v-if="step === 'info'" class="facts">
+          <div v-if="step === 'info'" class="fact">
             <EnvironmentOutlined class="fact-icon" />
             <dt>Местоположение</dt>
             <dd>{{ item.room }}</dd>
           </div>
-          <div class="fact">
+          <div v-if="step === 'info'" class="fact">
             <ApartmentOutlined class="fact-icon" />
             <dt>Подразделение</dt>
             <dd>{{ item.department }}</dd>
           </div>
-          <div class="fact">
-            <UserOutlined class="fact-icon" />
-            <dt>Контакты</dt>
-            <dd>
-              {{ item.contact.name }}<br />
-              {{ item.contact.email }}<br />
-              {{ item.contact.phone }}
-            </dd>
-          </div>
         </dl>
+        <!-- на шаге ознакомления контакты идут отдельным пунктом под фактами, текст в одну колонку с ними -->
+        <ObjectContacts v-if="step === 'info'" class="info-contacts" :contact="item.contact" />
       </aside>
 
       <!-- Состояние 1: ознакомление -->
@@ -592,14 +575,7 @@ const missing = computed(() => [
               format="DD.MM.YYYY"
               :allow-clear="false"
               :disabled-date="disabledDate"
-            >
-              <template #dateRender="{ current }">
-                <div class="ant-picker-cell-inner">
-                  {{ current.date() }}
-                  <i v-if="freeOn(current) > 0 && !current.isBefore(dayjs().startOf('day'))" class="cal-dot" />
-                </div>
-              </template>
-            </a-date-picker>
+            />
             <a-button aria-label="Предыдущий день со слотами" :disabled="!hasPrev" @click="shiftDay(-1)">
               <template #icon><LeftOutlined /></template>
             </a-button>
@@ -607,19 +583,7 @@ const missing = computed(() => [
               <template #icon><RightOutlined /></template>
             </a-button>
           </div>
-          <p class="caption">В календаре точкой отмечены дни со свободными слотами</p>
 
-          <label class="filter">
-            <span class="caption">Показать слоты в интервале</span>
-            <a-time-range-picker
-              v-model:value="timeFilter"
-              format="HH:mm"
-              :placeholder="['Начало', 'Окончание']"
-              :minute-step="30"
-            />
-          </label>
-
-          <p class="caption">Слоты по 30 минут — можно выбрать несколько подряд</p>
           <div v-for="g in slotGroups" :key="g.label" class="slot-group">
             <span class="slot-group-label">{{ g.label }}</span>
             <div class="slots" role="group" :aria-label="`Слоты: ${g.label.toLowerCase()}`">
@@ -636,25 +600,23 @@ const missing = computed(() => [
             </div>
           </div>
           <p v-if="!slots.length" class="empty">На выбранный день слотов нет — попробуйте другой</p>
-          <p v-else-if="!slotGroups.length" class="empty">
-            В этом интервале нет слотов.
-            <a-button type="link" class="inline-link" @click="timeFilter = undefined">Показать все</a-button>
-          </p>
         </section>
 
         <section v-if="hasServices" class="block">
-          <h3>Услуга</h3>
+          <h3>Услуга <span class="req" aria-hidden="true">*</span><span class="sr-only">(обязательно)</span></h3>
           <a-select
             v-model:value="service"
+            aria-required="true"
             placeholder="Выберите услугу"
             :options="item.services.map((s) => ({ value: s, label: s }))"
           />
         </section>
 
         <section class="block">
-          <h3>Цель работы</h3>
+          <h3>Цель работы <span class="req" aria-hidden="true">*</span><span class="sr-only">(обязательно)</span></h3>
           <a-textarea
             v-model:value="purpose"
+            aria-required="true"
             placeholder="Опишите цель работы"
             :auto-size="{ minRows: 3, maxRows: 6 }"
             :maxlength="500"
@@ -662,15 +624,21 @@ const missing = computed(() => [
           />
         </section>
 
-        <p v-if="docsOk" class="docs-done">
-          <CheckCircleFilled /> Документы изучены
-          <a-button type="link" class="inline-link" @click="step = 'info'">Посмотреть</a-button>
-        </p>
-        <p v-else class="docs-todo">
-          <ExclamationCircleFilled /> Нужно изучить документы:
-          {{ missingDocs.map((d) => `«${d.title}»`).join(', ') }}
-          <a-button type="link" class="inline-link" @click="step = 'info'">Перейти к документам</a-button>
-        </p>
+        <!-- документы тоже в форме: обязательные нужно изучить перед отправкой -->
+        <section class="block">
+          <h3>Документы</h3>
+          <ul class="docs">
+            <li v-for="d in item.documents" :key="d.id">
+              <div class="doc">
+                <span class="doc-title">
+                  <a-button type="link" class="doc-link" @click="openDoc(d.id)">{{ d.title }}</a-button>
+                </span>
+                <a-tag v-if="readDocs.has(d.id)" color="success">Изучено</a-tag>
+                <a-tag v-else-if="d.required" color="warning">Необходимо изучить</a-tag>
+              </div>
+            </li>
+          </ul>
+        </section>
       </div>
     </div>
 
@@ -681,9 +649,15 @@ const missing = computed(() => [
       height="auto"
       :z-index="1100"
       root-class-name="day-sheet"
-      :title="sheetDay.format('dddd, D MMMM')"
+      :closable="false"
     >
-      <p class="sheet-sub">{{ sheetFree ? `Свободно слотов: ${sheetFree}` : 'Нет свободных слотов' }}</p>
+      <!-- ручка и заголовок: свайп вниз по этой зоне закрывает шторку -->
+      <template #title>
+        <div class="sheet-head" @touchstart.passive="onSheetTouchStart" @touchend.passive="onSheetTouchEnd">
+          <span class="sheet-handle" aria-hidden="true" />
+          <span>{{ sheetDay.format('dddd, D MMMM') }}</span>
+        </div>
+      </template>
       <div class="sheet-slots">
         <span
           v-for="s in daySlots(sheetDay)"
@@ -692,7 +666,12 @@ const missing = computed(() => [
           :class="{ busy: !s.available }"
         >{{ s.start }}</span>
       </div>
-      <p class="pop-legend"><i class="free" /> свободно <i class="busy" /> занято · слоты по 30 минут</p>
+      <!-- легенда внизу шторки -->
+      <ul class="sheet-legend" aria-label="Обозначения">
+        <li><i class="free" /> Свободно</li>
+        <li><i class="busy" /> Занято</li>
+        <li class="muted">Слоты по 30 минут</li>
+      </ul>
     </a-drawer>
 
     <template #footer>
@@ -704,10 +683,7 @@ const missing = computed(() => [
         </template>
 
         <template v-else>
-          <a-button @click="step = 'info'">
-            <template #icon><ArrowLeftOutlined /></template>
-            К описанию
-          </a-button>
+          <a-button class="back-btn" @click="step = 'info'">Назад</a-button>
           <span class="spacer" />
           <a-tooltip :title="formBlockReason" placement="topRight">
             <span class="btn-wrap">
@@ -824,10 +800,62 @@ const missing = computed(() => [
   overflow: hidden;
   border-radius: 16px 16px 0 0;
 }
-.day-sheet .sheet-sub {
-  margin: 0 0 12px;
+/* без линии под шапкой; вместо крестика — ручка */
+.day-sheet .ant-drawer-header {
+  padding: 8px 24px 0;
+  border-bottom: 0;
+}
+.day-sheet .ant-drawer-header-title {
+  display: block;
+}
+.day-sheet .sheet-head {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  padding-bottom: 4px;
+  touch-action: none;
+}
+.day-sheet .sheet-handle {
+  align-self: center;
+  width: 40px;
+  height: 4px;
+  background: #d9d9d9;
+  border-radius: 2px;
+}
+/* легенда внизу шторки: крупные образцы и тёмный текст */
+.day-sheet .sheet-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 0;
+  margin: 16px 0 0;
   font-size: 14px;
+  line-height: 22px;
+  color: rgba(0, 0, 0, 0.88);
+  list-style: none;
+}
+.day-sheet .sheet-legend li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.day-sheet .sheet-legend .muted {
   color: rgba(0, 0, 0, 0.45);
+}
+.day-sheet .sheet-legend i {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+}
+.day-sheet .sheet-legend .free {
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+}
+.day-sheet .sheet-legend .busy {
+  background: none;
+  border: 1px dashed #bfbfbf;
 }
 .day-sheet .sheet-slots {
   display: grid;
@@ -854,16 +882,6 @@ const missing = computed(() => [
   overflow-wrap: anywhere;
   -webkit-line-clamp: 2; /* максимум две строки, дальше «…» */
   -webkit-box-orient: vertical;
-}
-.cal-dot {
-  position: absolute;
-  bottom: 1px;
-  left: 50%;
-  width: 4px;
-  height: 4px;
-  background: #52c41a;
-  border-radius: 50%;
-  transform: translateX(-50%);
 }
 </style>
 
@@ -1075,7 +1093,16 @@ const missing = computed(() => [
   font-size: 32px;
   color: rgba(0, 0, 0, 0.25);
 }
+/* мини-карточка объекта: единый «чип» с фото, названием и расположением */
 .mini {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px;
+  background: #fafafa;
+  border-radius: 12px;
+}
+.mini-main {
   display: flex;
   gap: 12px;
   align-items: center;
@@ -1085,11 +1112,11 @@ const missing = computed(() => [
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 72px;
+  width: 56px;
   height: 56px;
   overflow: hidden;
-  background: #f5f5f5;
-  border-radius: 6px;
+  background: #f0f0f0;
+  border-radius: 8px;
 }
 .mini-photo img {
   width: 100%;
@@ -1105,9 +1132,14 @@ const missing = computed(() => [
   color: rgba(0, 0, 0, 0.65);
 }
 .mini-text strong {
+  display: -webkit-box;
+  overflow: hidden;
   font-size: 14px;
+  font-weight: 600;
   line-height: 22px;
   color: rgba(0, 0, 0, 0.88);
+  -webkit-line-clamp: 2; /* длинное название — максимум две строки */
+  -webkit-box-orient: vertical;
 }
 .facts {
   display: flex;
@@ -1119,6 +1151,10 @@ const missing = computed(() => [
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr);
   gap: 0 8px;
+}
+/* контакты на шаге ознакомления: текст в одну колонку с остальными фактами (16px иконка + 8px зазор) */
+.info-contacts {
+  padding-left: 24px;
 }
 .fact-icon {
   grid-row: span 2;
@@ -1159,6 +1195,20 @@ const missing = computed(() => [
   font-size: 16px;
   font-weight: 600;
   line-height: 24px;
+}
+/* пометка обязательных полей */
+.req {
+  margin-left: 2px;
+  font-weight: 400;
+  color: #ff4d4f;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 .block-head {
   display: flex;
@@ -1383,23 +1433,6 @@ const missing = computed(() => [
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
 }
-.docs-todo {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  margin: 0;
-  font-size: 14px;
-  color: #d48806;
-}
-.docs-done {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  margin: 0;
-  font-size: 14px;
-  color: #389e0d;
-}
 .docs {
   padding: 0;
   margin: 0;
@@ -1450,6 +1483,10 @@ const missing = computed(() => [
   .flow {
     display: contents;
   }
+  /* в форме блоки ближе друг к другу */
+  .step-form {
+    gap: 16px;
+  }
   /* шаг «ознакомление»: фото → слоты → место/подразделение/контакты → описание → документы */
   .step-info .gallery {
     order: 1;
@@ -1457,8 +1494,9 @@ const missing = computed(() => [
   .step-info .block-time {
     order: 2;
   }
-  .step-info .facts {
-    order: 3;
+  .step-info .facts,
+  .step-info .info-contacts {
+    order: 3; /* место, подразделение и контакты идут вместе, в порядке разметки */
   }
   .step-info .block-about {
     order: 4;
@@ -1498,8 +1536,15 @@ const missing = computed(() => [
   }
   /* кнопки друг под другом на всю ширину; главная сверху */
   .footer {
-    flex-direction: column-reverse;
+    flex-direction: column;
     align-items: stretch;
+  }
+  /* главная кнопка сверху, «Назад» под ней */
+  .footer .btn-wrap {
+    order: 1;
+  }
+  .footer .back-btn {
+    order: 2;
   }
   .footer .spacer {
     display: none;
