@@ -3,6 +3,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   ApartmentOutlined,
+  CloseOutlined,
+  DownloadOutlined,
   DownOutlined,
   EnvironmentOutlined,
   LeftOutlined,
@@ -286,8 +288,28 @@ const slotGroups = computed(() => {
 
 /* ---------- действия ---------- */
 
+/** Документ, открытый в боковой панели */
+const docOpen = ref(false)
+const docIndex = ref(0)
+const currentDoc = computed(() => props.item?.documents[docIndex.value])
+
 const openDoc = (id: string) => {
-  readDocs.value = new Set(readDocs.value).add(id)
+  const i = props.item?.documents.findIndex((d) => d.id === id) ?? -1
+  if (i < 0) return
+  docIndex.value = i
+  docOpen.value = true
+}
+
+const stepDoc = (dir: 1 | -1) => {
+  const n = props.item?.documents.length ?? 0
+  if (n) docIndex.value = (docIndex.value + dir + n) % n
+}
+
+const confirmDoc = () => {
+  const d = currentDoc.value
+  if (!d) return
+  readDocs.value = new Set(readDocs.value).add(d.id)
+  docOpen.value = false
 }
 
 const goForm = (day?: Dayjs) => {
@@ -674,6 +696,56 @@ const missing = computed(() => [
       </ul>
     </a-drawer>
 
+    <!-- боковая панель с документом -->
+    <a-drawer
+      v-model:open="docOpen"
+      placement="right"
+      width="min(560px, 100vw)"
+      :z-index="1100"
+      root-class-name="doc-drawer"
+      :closable="false"
+    >
+      <template #title>
+        <div v-if="currentDoc" class="doc-head">
+          <a-button type="text" aria-label="Закрыть" @click="docOpen = false">
+            <template #icon><CloseOutlined /></template>
+          </a-button>
+          <span class="doc-head-title">{{ currentDoc.title }}</span>
+          <a-tag v-if="readDocs.has(currentDoc.id)" color="success">Изучено</a-tag>
+          <a-tag v-else-if="currentDoc.required" color="warning">Необходимо изучить</a-tag>
+        </div>
+      </template>
+
+      <div class="doc-viewer">
+        <div class="doc-page">
+          <h4>Сценарий бронирования объекта</h4>
+          <span class="doc-page-line" />
+          <p>Предпросмотр документа «{{ currentDoc?.title }}».</p>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="doc-foot">
+          <a-button aria-label="Предыдущий документ" @click="stepDoc(-1)">
+            <template #icon><LeftOutlined /></template>
+          </a-button>
+          <a-button aria-label="Следующий документ" @click="stepDoc(1)">
+            <template #icon><RightOutlined /></template>
+          </a-button>
+          <span class="spacer" />
+          <a-button aria-label="Скачать">
+            <template #icon><DownloadOutlined /></template>
+          </a-button>
+          <a-button
+            v-if="currentDoc?.required && !readDocs.has(currentDoc.id)"
+            type="primary"
+            @click="confirmDoc"
+          >Подтвердить ознакомление</a-button>
+          <a-button v-else @click="docOpen = false">Закрыть</a-button>
+        </div>
+      </template>
+    </a-drawer>
+
     <template #footer>
       <div class="footer">
         <template v-if="step === 'info'">
@@ -808,6 +880,16 @@ const missing = computed(() => [
 .day-sheet .ant-drawer-header-title {
   display: block;
 }
+.doc-drawer .ant-drawer-header-title { min-width: 0; }
+.doc-drawer .doc-head { display: flex; align-items: center; gap: 8px; width: 100%; }
+.doc-drawer .doc-head-title { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-drawer .doc-head .ant-tag { margin: 0; }
+.doc-drawer .doc-viewer { background: #eee; border-radius: 12px; padding: 20px; min-height: 100%; }
+.doc-drawer .doc-page { background: #fff; box-shadow: 0 1px 6px rgba(0, 0, 0, 0.15); aspect-ratio: 1 / 1.414; padding: 12% 8%; }
+.doc-drawer .doc-page h4 { font-size: 20px; margin: 0 0 12px; }
+.doc-drawer .doc-page-line { display: block; width: 80px; height: 3px; background: #1677ff; margin-bottom: 16px; }
+.doc-drawer .doc-foot { display: flex; align-items: center; gap: 8px; }
+.doc-drawer .doc-foot .spacer { flex: 1; }
 .day-sheet .sheet-head {
   display: flex;
   flex-direction: column;
