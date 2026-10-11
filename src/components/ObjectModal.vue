@@ -13,11 +13,27 @@ import {
   UpOutlined,
 } from '@ant-design/icons-vue'
 import dayjs, { type Dayjs } from 'dayjs'
-import { buildSlots, dayAvailability, fetchSlots, type BookingObject, type TimeSlot } from '@/api/objects'
+import {
+  FREE_STEP,
+  bookFree,
+  buildFreeIntervals,
+  buildSlots,
+  dayAvailability,
+  fetchFreeIntervals,
+  fetchSlots,
+  freeMinDuration,
+  minutesToTime,
+  timeToMinutes,
+  type BookingObject,
+  type BookingSummary,
+  type TimeRange,
+  type TimeSlot,
+} from '@/api/objects'
 import ObjectContacts from '@/components/ObjectContacts.vue'
 import ObjectTag from '@/components/ObjectTag.vue'
 
 const props = defineProps<{ item: BookingObject | null }>()
+const emit = defineEmits<{ submitted: [booking: BookingSummary] }>()
 const open = defineModel<boolean>('open', { default: false })
 
 /** info — ознакомление, form — заполнение заявки */
@@ -29,6 +45,12 @@ const selection = ref<[number, number]>()
 const service = ref<string>()
 const purpose = ref('')
 const slots = ref<TimeSlot[]>([])
+/* Свободная бронь: свободные интервалы дня, выбранный из них и время начала/конца внутри него */
+const freeIntervals = ref<TimeRange[]>([])
+const freeWindow = ref<number>()
+const freeStart = ref<string>()
+const freeEnd = ref<string>()
+const submitting = ref(false)
 const readDocs = ref<Set<string>>(new Set())
 const photoIndex = ref(0)
 const thumbsEl = ref<HTMLElement>()
@@ -102,6 +124,8 @@ watch([photoIndex, () => open.value, () => props.item?.id, step], async () => {
 })
 
 const hasServices = computed(() => !!props.item?.services.length)
+/** Свободная бронь: время выбирается внутри свободных интервалов, а не по сетке слотов */
+const isFree = computed(() => props.item?.bookingType === 'free')
 const images = computed(() => props.item?.images ?? [])
 const missingDocs = computed(
   () => props.item?.documents.filter((d) => d.required && !readDocs.value.has(d.id)) ?? [],
@@ -156,7 +180,10 @@ const openSheet = (d: Dayjs) => {
   sheetOpen.value = true
 }
 watch(open, (v) => {
-  if (!v) sheetOpen.value = false
+  if (!v) {
+    sheetOpen.value = false
+    docOpen.value = false
+  }
 })
 // свайп вниз по ручке/заголовку закрывает шторку
 let sheetY = 0
@@ -168,13 +195,17 @@ const onSheetTouchEnd = (e: TouchEvent) => {
 }
 
 const daySlots = (d: Dayjs) => (props.item ? buildSlots(props.item.id, d.toDate()) : [])
+const dayIntervals = (d: Dayjs) => (props.item ? buildFreeIntervals(props.item, d.toDate()) : [])
 
-/** Ближайший свободный слот в ближайшие две недели */
+/** Ближайший свободный слот (для свободной брони — интервал) в ближайшие две недели */
 const nearest = computed(() => {
-  if (!props.item) return null
+  const item = props.item
+  if (!item) return null
   for (let n = 0; n < 14; n++) {
     const d = dayjs().add(n, 'day')
-    const s = buildSlots(props.item.id, d.toDate()).find((x) => x.available)
+    const s = isFree.value
+      ? buildFreeIntervals(item, d.toDate())[0]
+      : buildSlots(item.id, d.toDate()).find((x) => x.available)
     if (s) {
       const when = n === 0 ? 'сегодня' : n === 1 ? 'завтра' : d.format('D MMMM')
       return { when, time: `${s.start}–${s.end}`, day: d }
@@ -182,6 +213,20 @@ const nearest = computed(() => {
   }
   return null
 })
+
+const fmtDuration = (minutes: number) => {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return [h ? `${h} ч` : '', m ? `${m} мин` : ''].filter(Boolean).join(' ')
+}
+
+/** Подпись дня для скринридера: у свободной брони считаем время, у слотов — штуки */
+const dayLabel = (w: { d: Dayjs; free: number }) => {
+  const state = !w.free
+    ? isFree.value ? 'нет свободного времени' : 'нет свободных слотов'
+    : isFree.value ? `свободно ${fmtDuration(w.free)}` : `свободно слотов ${w.free}`
+  return `${w.d.format('D MMMM')}: ${state}`
+}
 
 /* ---------- слоты ---------- */
 
@@ -191,19 +236,25 @@ const timeOf = (t: string, day: Dayjs) => {
 }
 
 const range = computed<[Dayjs, Dayjs] | undefined>(() => {
+  if (isFree.value) {
+    return freeStart.value && freeEnd.value
+      ? [timeOf(freeStart.value, date.value), timeOf(freeEnd.value, date.value)]
+      : undefined
+  }
   const sel = selection.value
   if (!sel) return undefined
   return [timeOf(slots.value[sel[0]].start, date.value), timeOf(slots.value[sel[1]].end, date.value)]
 })
 const isSelected = (i: number) => !!selection.value && i >= selection.value[0] && i <= selection.value[1]
 const selectedLabel = computed(() => {
+  if (isFree.value) {
+    if (!freeStart.value || !freeEnd.value) return ''
+    const minutes = timeToMinutes(freeEnd.value) - timeToMinutes(freeStart.value)
+    return `${freeStart.value}–${freeEnd.value} · ${fmtDuration(minutes)}`
+  }
   const sel = selection.value
   if (!sel) return ''
-  const minutes = (sel[1] - sel[0] + 1) * 30
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-  const dur = [h ? `${h} ч` : '', m ? `${m} мин` : ''].filter(Boolean).join(' ')
-  return `${slots.value[sel[0]].start}–${slots.value[sel[1]].end} · ${dur}`
+  return `${slots.value[sel[0]].start}–${slots.value[sel[1]].end} · ${fmtDuration((sel[1] - sel[0] + 1) * 30)}`
 })
 
 const canSubmit = computed(
@@ -226,6 +277,51 @@ const hasPrev = computed(() => {
   return false
 })
 
+/* ---------- свободная бронь ---------- */
+
+const minLength = computed(() => (props.item ? freeMinDuration(props.item) : FREE_STEP))
+const selectedWindow = computed(() =>
+  freeWindow.value === undefined ? undefined : freeIntervals.value[freeWindow.value],
+)
+
+/** Если интервал всего один, выбирать между интервалами нечего — он выбран сразу */
+const resetFree = () => {
+  freeWindow.value = freeIntervals.value.length === 1 ? 0 : undefined
+  freeStart.value = undefined
+  freeEnd.value = undefined
+}
+const loadFree = async () => {
+  if (!props.item) return
+  freeIntervals.value = await fetchFreeIntervals(props.item.id, date.value.toDate())
+  resetFree()
+}
+const pickWindow = (i: number) => {
+  if (freeWindow.value === i) return
+  freeWindow.value = i
+  freeStart.value = undefined
+  freeEnd.value = undefined
+}
+
+/** Время с шагом сетки в пределах [from, to] минут */
+const timeOptions = (from: number, to: number) => {
+  const options: { value: string }[] = []
+  for (let m = from; m <= to; m += FREE_STEP) options.push({ value: minutesToTime(m) })
+  return options
+}
+// между началом и концом всегда остаётся минимальная длительность, иначе пару не выбрать
+const startOptions = computed(() => {
+  const w = selectedWindow.value
+  if (!w) return []
+  const limit = timeToMinutes(freeEnd.value ?? w.end)
+  return timeOptions(timeToMinutes(w.start), limit - minLength.value)
+})
+const endOptions = computed(() => {
+  const w = selectedWindow.value
+  if (!w) return []
+  const base = timeToMinutes(freeStart.value ?? w.start)
+  return timeOptions(base + minLength.value, timeToMinutes(w.end))
+})
+
 watch(
   () => [open.value, props.item?.id] as const,
   ([isOpen]) => {
@@ -244,7 +340,8 @@ watch(
   () => [open.value, props.item?.id, date.value.format('YYYY-MM-DD')] as const,
   async ([isOpen, id]) => {
     if (!isOpen || !id) return
-    slots.value = await fetchSlots(id, date.value.toDate())
+    if (isFree.value) await loadFree()
+    else slots.value = await fetchSlots(id, date.value.toDate())
     selection.value = undefined
   },
   { immediate: true },
@@ -317,8 +414,33 @@ const goForm = (day?: Dayjs) => {
   step.value = 'form'
 }
 
-const submit = () => {
-  message.success('Заявка отправлена')
+const submit = async () => {
+  const item = props.item
+  if (isFree.value && item && freeStart.value && freeEnd.value) {
+    submitting.value = true
+    try {
+      await bookFree(item.id, date.value.toDate(), { start: freeStart.value, end: freeEnd.value })
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Не удалось отправить заявку')
+      // пока заполняли форму, время мог занять кто-то другой — показываем актуальные интервалы
+      await loadFree()
+      return
+    } finally {
+      submitting.value = false
+    }
+  }
+  if (item && range.value) {
+    const [from, to] = range.value
+    emit('submitted', {
+      // номер пока генерируется на клиенте, до появления бэкенда
+      number: String(10000 + Math.floor(Math.random() * 90000)),
+      title: item.title,
+      place: `${item.building}, ${item.room}`,
+      date: date.value.format('DD.MM.YYYY'),
+      time: `${from.format('HH:mm')}–${to.format('HH:mm')} · ${fmtDuration(to.diff(from, 'minute'))}`,
+      service: service.value,
+    })
+  }
   open.value = false
 }
 
@@ -486,9 +608,11 @@ const missing = computed(() => [
         <section class="block block-time">
           <h3>Свободное время</h3>
           <p v-if="nearest" class="nearest">
-            Ближайший слот: {{ nearest.when }}, {{ nearest.time }}
+            {{ isFree ? 'Ближайшее время' : 'Ближайший слот' }}: {{ nearest.when }}, {{ nearest.time }}
           </p>
-          <p v-else class="nearest">Свободных слотов в ближайшие две недели нет</p>
+          <p v-else class="nearest">
+            {{ isFree ? 'Свободного времени' : 'Свободных слотов' }} в ближайшие две недели нет
+          </p>
 
           <div class="week-wrap">
             <button
@@ -533,15 +657,24 @@ const missing = computed(() => [
                 {{ w.d.format('dddd, D MMMM') }}
               </template>
               <template #content>
-                <div class="pop-slots">
-                  <span
-                    v-for="s in daySlots(w.d)"
-                    :key="s.start"
-                    class="pop-slot"
-                    :class="{ busy: !s.available }"
-                  >{{ s.start }}</span>
-                </div>
-                <p class="pop-legend"><i class="free" /> свободно <i class="busy" /> занято · слоты по 30 минут</p>
+                <template v-if="isFree">
+                  <div class="pop-intervals">
+                    <span v-for="r in dayIntervals(w.d)" :key="r.start" class="pop-slot">{{ r.start }}–{{ r.end }}</span>
+                    <span v-if="!w.free" class="pop-none">Нет свободного времени</span>
+                  </div>
+                  <p class="pop-legend"><i class="free" /> свободно · бронь от {{ fmtDuration(minLength) }}</p>
+                </template>
+                <template v-else>
+                  <div class="pop-slots">
+                    <span
+                      v-for="s in daySlots(w.d)"
+                      :key="s.start"
+                      class="pop-slot"
+                      :class="{ busy: !s.available }"
+                    >{{ s.start }}</span>
+                  </div>
+                  <p class="pop-legend"><i class="free" /> свободно <i class="busy" /> занято · слоты по 30 минут</p>
+                </template>
               </template>
               <span class="day-wrap">
                 <!-- не кликабельно: только наведение с поповером слотов -->
@@ -550,7 +683,7 @@ const missing = computed(() => [
                   :class="w.level"
                   role="group"
                   @click="openSheet(w.d)"
-                  :aria-label="`${w.d.format('D MMMM')}: ${w.free ? `свободно слотов ${w.free}` : 'нет свободных слотов'}`"
+                  :aria-label="dayLabel(w)"
                 >
                   <span class="day-label">{{ w.label }}</span>
                   <span class="day-num">{{ w.d.format('D') }}<small>{{ w.month }}</small></span>
@@ -606,22 +739,78 @@ const missing = computed(() => [
             </a-button>
           </div>
 
-          <div v-for="g in slotGroups" :key="g.label" class="slot-group">
-            <span class="slot-group-label">{{ g.label }}</span>
-            <div class="slots" role="group" :aria-label="`Слоты: ${g.label.toLowerCase()}`">
-              <a-button
-                v-for="{ s, i } in g.items"
-                :key="s.start"
-                :aria-pressed="isSelected(i)"
-                :type="isSelected(i) ? 'primary' : 'default'"
-                :disabled="!s.available"
-                @click="pickSlot(i)"
-              >
-                {{ s.start }}-{{ s.end }}
-              </a-button>
+          <!-- свободная бронь: интервалы, где можно бронировать (разрешённые админом минус занятое);
+               внутри выбранного интервала начало и конец задаются самостоятельно -->
+          <template v-if="isFree">
+            <div v-if="freeIntervals.length" class="free-pick">
+              <!-- шаг 1: в каком из свободных окон бронировать -->
+              <div class="slot-group">
+                <span class="slot-group-label">1. Выберите свободный интервал</span>
+                <div class="slots intervals" role="group" aria-label="Свободные интервалы">
+                  <a-button
+                    v-for="(r, i) in freeIntervals"
+                    :key="r.start"
+                    :aria-pressed="freeWindow === i"
+                    :type="freeWindow === i ? 'primary' : 'default'"
+                    @click="pickWindow(i)"
+                  >
+                    {{ r.start }}–{{ r.end }}
+                    <span class="chip-dur">{{ fmtDuration(timeToMinutes(r.end) - timeToMinutes(r.start)) }}</span>
+                  </a-button>
+                </div>
+              </div>
+              <!-- шаг 2: время брони внутри выбранного интервала; пока интервал не выбран, поля выключены -->
+              <div class="time-pick">
+                <span class="slot-group-label" :class="{ muted: !selectedWindow }">
+                  2. Выберите время брони
+                  <span v-if="!selectedWindow" class="step-hint">— сначала выберите интервал</span>
+                </span>
+                <div class="time-row">
+                  <div class="time-field">
+                    <span class="field-label">Начало</span>
+                    <a-select
+                      v-model:value="freeStart"
+                      aria-label="Начало брони"
+                      placeholder="Время"
+                      :disabled="!selectedWindow"
+                      :options="startOptions"
+                    />
+                  </div>
+                  <div class="time-field">
+                    <span class="field-label">Конец</span>
+                    <a-select
+                      v-model:value="freeEnd"
+                      aria-label="Конец брони"
+                      placeholder="Время"
+                      :disabled="!selectedWindow"
+                      :options="endOptions"
+                    />
+                  </div>
+                </div>
+              </div>
+              <p class="caption">Минимальная бронь — {{ fmtDuration(minLength) }}</p>
             </div>
-          </div>
-          <p v-if="!slots.length" class="empty">На выбранный день слотов нет — попробуйте другой</p>
+            <p v-else class="empty">На выбранный день свободного времени нет — попробуйте другой</p>
+          </template>
+
+          <template v-else>
+            <div v-for="g in slotGroups" :key="g.label" class="slot-group">
+              <span class="slot-group-label">{{ g.label }}</span>
+              <div class="slots" role="group" :aria-label="`Слоты: ${g.label.toLowerCase()}`">
+                <a-button
+                  v-for="{ s, i } in g.items"
+                  :key="s.start"
+                  :aria-pressed="isSelected(i)"
+                  :type="isSelected(i) ? 'primary' : 'default'"
+                  :disabled="!s.available"
+                  @click="pickSlot(i)"
+                >
+                  {{ s.start }}-{{ s.end }}
+                </a-button>
+              </div>
+            </div>
+            <p v-if="!slots.length" class="empty">На выбранный день слотов нет — попробуйте другой</p>
+          </template>
         </section>
 
         <section v-if="hasServices" class="block">
@@ -680,7 +869,11 @@ const missing = computed(() => [
           <span>{{ sheetDay.format('dddd, D MMMM') }}</span>
         </div>
       </template>
-      <div class="sheet-slots">
+      <div v-if="isFree" class="sheet-slots intervals">
+        <span v-for="r in dayIntervals(sheetDay)" :key="r.start" class="pop-slot">{{ r.start }}–{{ r.end }}</span>
+        <span v-if="!dayIntervals(sheetDay).length" class="pop-none">Нет свободного времени</span>
+      </div>
+      <div v-else class="sheet-slots">
         <span
           v-for="s in daySlots(sheetDay)"
           :key="s.start"
@@ -691,8 +884,8 @@ const missing = computed(() => [
       <!-- легенда внизу шторки -->
       <ul class="sheet-legend" aria-label="Обозначения">
         <li><i class="free" /> Свободно</li>
-        <li><i class="busy" /> Занято</li>
-        <li class="muted">Слоты по 30 минут</li>
+        <li v-if="!isFree"><i class="busy" /> Занято</li>
+        <li class="muted">{{ isFree ? `Бронь от ${fmtDuration(minLength)}` : 'Слоты по 30 минут' }}</li>
       </ul>
     </a-drawer>
 
@@ -759,7 +952,7 @@ const missing = computed(() => [
           <span class="spacer" />
           <a-tooltip :title="formBlockReason" placement="topRight">
             <span class="btn-wrap">
-              <a-button type="primary" :disabled="!canSubmit" @click="submit">Отправить заявку</a-button>
+              <a-button type="primary" :disabled="!canSubmit" :loading="submitting" @click="submit">Отправить заявку</a-button>
             </span>
           </a-tooltip>
         </template>
@@ -843,6 +1036,21 @@ const missing = computed(() => [
   color: rgba(0, 0, 0, 0.25);
   background: none;
   border: 1px dashed #d9d9d9;
+}
+/* свободная бронь: вместо сетки слотов — перечень свободных интервалов дня */
+.pop-intervals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: 268px;
+}
+.pop-intervals .pop-slot {
+  padding: 0 8px;
+}
+.pop-none {
+  font-size: 12px;
+  line-height: 20px;
+  color: rgba(0, 0, 0, 0.45);
 }
 .pop-legend {
   margin: 8px 0 0;
@@ -943,6 +1151,14 @@ const missing = computed(() => [
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
+}
+.day-sheet .sheet-slots.intervals {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.day-sheet .pop-none {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  line-height: 22px;
 }
 .day-sheet .pop-slot {
   padding: 6px 0;
@@ -1514,6 +1730,53 @@ const missing = computed(() => [
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
+}
+/* свободная бронь: интервалы длиннее слотов, поэтому по два в ряд (и на телефоне тоже) */
+.slots.intervals {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.free-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.time-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.time-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.time-field :deep(.ant-select) {
+  width: 100%;
+}
+.time-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.field-label {
+  font-size: 12px;
+  line-height: 20px;
+  color: rgba(0, 0, 0, 0.65);
+}
+.chip-dur {
+  margin-left: 4px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+.slots.intervals :deep(.ant-btn-primary) .chip-dur {
+  color: rgba(255, 255, 255, 0.8);
+}
+/* шаг 2 приглушён, пока не выбран интервал */
+.slot-group-label.muted {
+  color: rgba(0, 0, 0, 0.45);
+}
+.step-hint {
+  font-weight: 400;
 }
 .docs {
   padding: 0;

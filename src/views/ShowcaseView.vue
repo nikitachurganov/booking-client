@@ -12,7 +12,8 @@ import {
 } from '@ant-design/icons-vue'
 import dayjs, { type Dayjs } from 'dayjs'
 import { fetchCategories, type Category } from '@/api/categories'
-import { fetchObjects, type BookingObject } from '@/api/objects'
+import { fetchObjects, type BookingObject, type BookingSummary } from '@/api/objects'
+import BookingSuccessModal from '@/components/BookingSuccessModal.vue'
 import ObjectCard from '@/components/ObjectCard.vue'
 import ObjectModal from '@/components/ObjectModal.vue'
 
@@ -64,6 +65,13 @@ const modalOpen = ref(false)
 const openObject = (o: BookingObject) => {
   selected.value = o
   modalOpen.value = true
+}
+// после отправки заявки модал объекта закрывается и открывается окно «Заявка отправлена»
+const successOpen = ref(false)
+const lastBooking = ref<BookingSummary | null>(null)
+const onSubmitted = (booking: BookingSummary) => {
+  lastBooking.value = booking
+  successOpen.value = true
 }
 const chipsEl = ref<HTMLElement>()
 const drawerWidth = computed(() => Math.min(400, window.innerWidth))
@@ -249,7 +257,12 @@ const selectCategory = (id: string | number) => router.replace({ name: 'showcase
       </div>
     </section>
 
-    <ObjectModal v-model:open="modalOpen" :item="selected" />
+    <ObjectModal v-model:open="modalOpen" :item="selected" @submitted="onSubmitted" />
+    <BookingSuccessModal
+      v-model:open="successOpen"
+      :booking="lastBooking"
+      @go-to-bookings="router.push({ name: 'my-bookings' })"
+    />
 
     <a-drawer v-model:open="filtersOpen" title="Фильтры" placement="right" :width="drawerWidth">
       <div class="drawer-form">
